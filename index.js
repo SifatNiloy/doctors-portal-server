@@ -3,8 +3,8 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 const { MongoClient, ServerApiVersion, Admin } = require('mongodb');
-const nodemailer = require('nodemailer');
-const nodemailerSendgrid = require('nodemailer-sendgrid');
+var nodemailer = require('nodemailer');
+var sgTransport = require('nodemailer-sendgrid-transport');
 
 
 const app = express()
@@ -28,6 +28,47 @@ function verifyJWT(req, res, next) {
     }
     req.decoded = decoded;
     next();
+  });
+}
+
+const emailSenderOptions = {
+  auth: {
+
+    api_key: process.env.EMAIL_SENDER_KEY,
+  }
+}
+
+const emailClient = nodemailer.createTransport(sgTransport(emailSenderOptions))
+
+function sendAppointmentEmail(booking) {
+  const { patient, patientName, treatment, date, slot } = booking;
+
+  var email = {
+
+    from: process.env.EMAIL_SENDER,
+    to: patient,
+    subject: `Your appointment for ${treatment} is on ${date} at ${slot} is confirmed`,
+    text: `Your appointment for ${treatment} is on ${date} at ${slot} is confirmed`,
+    html: `
+    <div>
+    <h2>Hello ${patientName}</h2>
+    <h3>Your appointment for ${treatment} is confirmed </h3>
+    <p>Looking forward to see you on on ${date} at ${slot} </p>
+    <h3>Our address</h3>
+    <p>26/2 Banani, Dhaka</p>
+    <p>Bangladesh</p>
+    <a href="https://www.programming-hero.com/">unsubscribe</a>
+    </div>
+    `
+  };
+
+  emailClient.sendMail(email, function (err, info) {
+    if (err) {
+      console.log(err)
+    }
+    else {
+      console.log('Message sent : ', info)
+    }
   });
 }
 
@@ -130,11 +171,13 @@ async function run() {
         return res.send({ success: false, booking: exists })
       }
       const result = await bookingCollection.insertOne(booking);
+      console.log('sending email');
+      sendAppointmentEmail(booking);
       return res.send({ success: true, result });
     });
 
-    app.get('/doctor', verifyJWT, verifyAdmin, async(req,res)=>{
-      const doctors= await doctorCollection.find().toArray();
+    app.get('/doctor', verifyJWT, verifyAdmin, async (req, res) => {
+      const doctors = await doctorCollection.find().toArray();
       res.send(doctors);
     })
 
@@ -144,8 +187,8 @@ async function run() {
       res.send(result);
     })
     app.delete('/doctor/:email', verifyJWT, verifyAdmin, async (req, res) => {
-      const email= req.params.email;
-      const filter= {email: email};
+      const email = req.params.email;
+      const filter = { email: email };
       const result = await doctorCollection.deleteOne(filter);
       res.send(result);
     })
