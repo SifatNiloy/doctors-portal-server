@@ -77,7 +77,8 @@ async function run() {
     const serviceCollection = client.db('doctors_portal').collection('services');
     const bookingCollection = client.db('doctors_portal').collection('bookings');
     const userCollection = client.db('doctors_portal').collection('users');
-    const doctorCollection = client.db('doctors_portal').collection('doctors');
+    const doctorCollection = client.db('doctors_portal').collection('doctors'); 
+    const paymentCollection = client.db('doctors_portal').collection('payments'); 
 
     const verifyAdmin = async (req, res, next) => {
       const requester = req.decoded.email;
@@ -90,7 +91,7 @@ async function run() {
       }
     }
 
-    app.post('/create-payment-intent',verifyJWT, async(req, res)=>{
+    app.post('/create-payment-intent', async(req, res)=>{
       const service= req.body;
       const price= service.price;
       const amount= price*100;
@@ -180,6 +181,20 @@ async function run() {
       const booking= await bookingCollection.findOne(query);
       res.send(booking);
 
+    })
+    app.patch('/booking/:id', async(req, res)=>{
+      const id= req.params.id;
+      const payment= req.body;
+      const filter={_id: ObjectId(id)};
+      const updateDoc={
+        $set: {
+          paid: true,
+          transactionId: payment.transactionId
+        }
+      }
+      const result= await paymentCollection.insertOne(payment);
+      const updatedBooking= await bookingCollection.updateOne(filter, updateDoc)
+      res.send(updateDoc);
     })
 
     app.post('/booking', async (req, res) => {
