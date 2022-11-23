@@ -5,7 +5,7 @@ require('dotenv').config();
 const { MongoClient, ServerApiVersion, Admin, ObjectId } = require('mongodb');
 var nodemailer = require('nodemailer');
 var sgTransport = require('nodemailer-sendgrid-transport');
-
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 
 const app = express()
 const port = process.env.PORT || 5000;
@@ -162,7 +162,7 @@ async function run() {
 
     })
 
-    app.get('/booking/:id', verifyJWT, async(req, res)=>{
+    app.get('/booking/:id', async(req, res)=>{
       const id= req.params.id;
       const query= {_id: ObjectId(id)};
       const booking= await bookingCollection.findOne(query);
